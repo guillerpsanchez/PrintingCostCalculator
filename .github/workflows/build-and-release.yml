@@ -2,14 +2,16 @@ name: Build and Release
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, master ]
   workflow_dispatch:
 
 jobs:
   build-and-release:
     runs-on: macos-latest
+    permissions:
+      contents: write
     
     steps:
       - uses: actions/checkout@v3
@@ -32,24 +34,29 @@ jobs:
       - name: Get Version
         id: get_version
         run: echo "VERSION=$(date +'%Y%m%d%H%M')" >> $GITHUB_ENV
+      
+      - name: Setup GitHub CLI
+        run: gh auth setup-git --token ${{ secrets.GITHUB_TOKEN }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
+      - name: Create Release and Upload Asset
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: v${{ env.VERSION }}
-          release_name: Release v${{ env.VERSION }}
-          draft: false
-          prerelease: false
+          VERSION: ${{ env.VERSION }}
+        run: |
+          # Verificar que el ejecutable existe
+          if [ ! -f "./target/release/rust-3d-printing-calculator" ]; then
+            echo "Error: El ejecutable no se encuentra en la ruta esperada"
+            ls -la ./target/release/
+            exit 1
+          fi
           
-      - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./target/release/printing-cost-calculator
-          asset_name: printing-cost-calculator-macos
-          asset_content_type: application/octet-stream
+          # Renombrar el ejecutable para que tenga un nombre más descriptivo
+          cp ./target/release/rust-3d-printing-calculator ./target/release/printing-cost-calculator-macos
+          
+          # Crear release y subir el asset usando gh CLI
+          gh release create "v$VERSION" \
+            --title "Release v$VERSION" \
+            --notes "Automated build for macOS" \
+            ./target/release/printing-cost-calculator-macos
