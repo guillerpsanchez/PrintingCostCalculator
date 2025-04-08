@@ -1,0 +1,12 @@
+[package]
+name = "rust-3d-printing-calculator"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+eframe = "0.25"
+anyhow = "1.0"
+tokio = { version = "1", features = ["full"] }
+objc = "0.2"
+winit = "0.30.9"
+locale = "0.2.2"
